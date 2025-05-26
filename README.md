@@ -1,73 +1,208 @@
-# Welcome to your Lovable project
 
-## Project info
+# WhatsApp Web Dashboard
 
-**URL**: https://lovable.dev/projects/0b4ec9d3-1765-4d40-8b27-1dc1aa8da420
+A complete full-stack application for managing WhatsApp Web automation with webhook support for real-time message notifications.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+### Frontend (React + TypeScript)
+- Modern responsive dashboard built with React and Tailwind CSS
+- Real-time connection status monitoring
+- QR code display for WhatsApp Web authentication
+- Message sending interface with phone number validation
+- Media file upload and sending (images, videos, audio, documents)
+- Message logs with search and filtering
+- Webhook configuration and testing
+- Webhook logs monitoring
+- Dashboard statistics and analytics
 
-**Use Lovable**
+### Backend (Node.js + Express)
+- WhatsApp Web.js integration for message handling
+- QR code generation for authentication
+- RESTful API endpoints
+- SQLite database for message and webhook logs
+- Media file handling with 10MB size limit
+- Webhook notifications for incoming messages
+- Real-time message processing
+- Connection status management
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0b4ec9d3-1765-4d40-8b27-1dc1aa8da420) and start prompting.
+### Webhook Features
+- Configure custom webhook URLs
+- Real-time message notifications
+- Media file transfer support
+- Test webhook functionality
+- Comprehensive webhook logs
+- Secure payload delivery
 
-Changes made via Lovable will be committed automatically to this repo.
+## Quick Start
 
-**Use your preferred IDE**
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Chrome/Chromium (for WhatsApp Web.js)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. **Clone and setup:**
+```bash
+git clone <repository-url>
+cd whatsapp-web-dashboard
+chmod +x setup.sh
+./setup.sh
+```
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+2. **Start the backend:**
+```bash
+cd backend
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+3. **Start the frontend (in another terminal):**
+```bash
+npm run dev
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+4. **Access the application:**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
 
-**Use GitHub Codespaces**
+### Docker Deployment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+For production deployment with Docker:
 
-## What technologies are used for this project?
+```bash
+docker-compose up -d
+```
 
-This project is built with:
+## Configuration
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Backend Environment Variables
+Copy `backend/.env.example` to `backend/.env` and configure:
 
-## How can I deploy this project?
+```env
+PORT=5000
+NODE_ENV=development
+DB_PATH=./whatsapp.db
+WHATSAPP_SESSION_PATH=./whatsapp-session
+DEFAULT_WEBHOOK_URL=https://your-webhook-endpoint.com/webhook
+```
 
-Simply open [Lovable](https://lovable.dev/projects/0b4ec9d3-1765-4d40-8b27-1dc1aa8da420) and click on Share -> Publish.
+### Webhook Configuration
+1. Deploy your webhook endpoint that accepts POST requests
+2. Go to "Webhook Config" tab in the dashboard
+3. Enter your webhook URL and click "Configure"
+4. Test the webhook using the "Send Test Event" button
 
-## Can I connect a custom domain to my Lovable project?
+## API Documentation
 
-Yes, you can!
+### Connection Management
+- `GET /api/connection/status` - Get connection status
+- `POST /api/connection/connect` - Connect to WhatsApp Web
+- `POST /api/connection/disconnect` - Disconnect
+- `POST /api/connection/qr-code` - Get QR code
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Messaging
+- `POST /api/send-message` - Send text message
+- `POST /api/send-media` - Send media file
+- `GET /api/messages/logs` - Get message logs
+- `DELETE /api/messages/logs` - Clear logs
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Webhook Management
+- `GET /api/webhook/logs` - Get webhook logs
+- `DELETE /api/webhook/logs` - Clear webhook logs
+- `GET /api/webhook/info` - Get webhook configuration
+- `POST /api/webhook/configure` - Configure webhook URL
+- `POST /api/webhook/test` - Send test webhook
+
+### Dashboard
+- `GET /api/dashboard/stats` - Get statistics
+- `GET /api/health` - Health check
+
+## Webhook Payload
+
+When a message is received, your webhook will receive:
+
+```json
+{
+  "type": "message_received",
+  "message": {
+    "id": "message_id_123",
+    "from": "+1234567890@c.us",
+    "body": "Hello, this is a test message",
+    "timestamp": 1234567890,
+    "hasMedia": false,
+    "mediaType": null,
+    "mediaPath": null
+  }
+}
+```
+
+## Supported Media Types
+
+- **Images:** JPG, PNG, GIF, WebP
+- **Videos:** MP4, AVI, MOV
+- **Audio:** MP3, WAV, OGG
+- **Documents:** PDF, DOC, DOCX, TXT
+
+Maximum file size: 10MB
+
+## Development
+
+### Project Structure
+```
+├── src/                    # Frontend React app
+│   ├── components/         # React components
+│   ├── hooks/             # Custom hooks
+│   ├── services/          # API services
+│   └── pages/             # Route pages
+├── backend/               # Backend Node.js app
+│   ├── server.js         # Main server file
+│   ├── package.json      # Backend dependencies
+│   └── uploads/          # Media file storage
+├── docker-compose.yml    # Docker configuration
+└── README.md            # This file
+```
+
+### Adding New Features
+1. **Frontend:** Add components in `src/components/`
+2. **Backend:** Add routes in `backend/server.js`
+3. **API:** Update `src/services/api.ts` for new endpoints
+
+## Security Considerations
+
+- Validate all incoming webhook requests
+- Implement rate limiting for API endpoints
+- Use HTTPS in production
+- Sanitize file uploads
+- Implement proper authentication for production use
+
+## Troubleshooting
+
+### Common Issues
+
+**WhatsApp won't connect:**
+- Ensure Chrome/Chromium is installed
+- Check if port 5000 is available
+- Try deleting `.wwebjs_auth` folder and reconnecting
+
+**Webhook not receiving data:**
+- Verify webhook URL is accessible from the internet
+- Check webhook logs for error details
+- Test webhook endpoint manually
+
+**File upload fails:**
+- Check file size (max 10MB)
+- Verify file type is supported
+- Ensure uploads directory has write permissions
+
+## License
+
+MIT License - feel free to use this project for personal or commercial purposes.
+
+## Support
+
+For issues and questions:
+1. Check the troubleshooting section
+2. Review the API documentation
+3. Check webhook logs for errors
+4. Ensure all dependencies are properly installed

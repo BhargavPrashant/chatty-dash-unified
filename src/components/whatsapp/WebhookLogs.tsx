@@ -1,75 +1,57 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
-interface WebhookLog {
-  id: string;
-  timestamp: string;
-  method: 'POST' | 'GET' | 'PUT' | 'DELETE';
-  endpoint: string;
-  status: number;
-  source: string;
-  payload: any;
-  response: any;
-}
+import { useToast } from "@/hooks/use-toast";
+import { useApiCall } from "@/hooks/useApi";
+import { webhookApi, WebhookLog } from "@/services/api";
 
 export const WebhookLogs = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
+  const [logs, setLogs] = useState<WebhookLog[]>([]);
   
-  // Mock data - replace with actual webhook logs from your backend
-  const [logs] = useState<WebhookLog[]>([
-    {
-      id: '1',
-      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-      method: 'POST',
-      endpoint: '/webhook/whatsapp',
-      status: 200,
-      source: '157.240.12.35',
-      payload: {
-        type: 'message',
-        from: '+1234567890',
-        message: 'Hello, I need help with my order',
-        timestamp: Date.now()
-      },
-      response: { success: true, processed: true }
-    },
-    {
-      id: '2',
-      timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      method: 'POST',
-      endpoint: '/webhook/whatsapp',
-      status: 200,
-      source: '157.240.12.35',
-      payload: {
-        type: 'status',
-        messageId: 'msg_123',
-        status: 'delivered',
-        timestamp: Date.now()
-      },
-      response: { success: true, processed: true }
-    },
-    {
-      id: '3',
-      timestamp: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-      method: 'POST',
-      endpoint: '/webhook/whatsapp',
-      status: 500,
-      source: '157.240.12.35',
-      payload: {
-        type: 'message',
-        from: '+1987654321',
-        message: 'Can you help me?',
-        timestamp: Date.now()
-      },
-      response: { error: 'Internal server error', processed: false }
-    }
-  ]);
+  const { loading: isLoading, execute: executeLoadLogs } = useApiCall();
+  const { loading: isClearing, execute: executeClearLogs } = useApiCall();
+
+  // Load webhook logs
+  const loadLogs = async () => {
+    await executeLoadLogs(async () => {
+      const response = await webhookApi.getLogs(100, 0);
+      if (response.success && response.data) {
+        setLogs(response.data);
+      }
+      return response;
+    });
+  };
+
+  // Clear webhook logs
+  const clearLogs = async () => {
+    await executeClearLogs(async () => {
+      const response = await webhookApi.clearLogs();
+      if (response.success) {
+        setLogs([]);
+        toast({
+          title: "Logs Cleared",
+          description: "All webhook logs have been cleared",
+        });
+      }
+      return response;
+    });
+  };
+
+  useEffect(() => {
+    loadLogs();
+    
+    // Auto-refresh logs every 10 seconds
+    const interval = setInterval(loadLogs, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const filteredLogs = logs.filter(log =>
     log.endpoint.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,7 +96,7 @@ export const WebhookLogs = () => {
       <CardHeader>
         <CardTitle>Webhook Logs</CardTitle>
         <CardDescription>
-          Monitor incoming webhook requests from WhatsApp
+          Monitor webhook requests sent to your configured endpoint
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -125,15 +107,33 @@ export const WebhookLogs = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1"
           />
-          <Button variant="outline">Clear Logs</Button>
+          <Button 
+            variant="outline" 
+            onClick={clearLogs}
+            disabled={isClearing}
+          >
+            {isClearing ? 'Clearing...' : 'Clear Logs'}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={loadLogs}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Refreshing...' : 'Refresh'}
+          </Button>
         </div>
 
         <Separator />
 
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {filteredLogs.length === 0 ? (
+          {isLoading && logs.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>Loading webhook logs...</p>
+            </div>
+          ) : filteredLogs.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <p>No webhook logs found</p>
+              <p className="text-xs mt-2">Configure a webhook URL to start receiving notifications</p>
             </div>
           ) : (
             filteredLogs.map((log) => (
@@ -148,7 +148,7 @@ export const WebhookLogs = () => {
                         <Badge className={getMethodColor(log.method)}>
                           {log.method}
                         </Badge>
-                        <span className="font-mono text-sm">{log.endpoint}</span>
+                        <span className="font-mono text-sm truncate max-w-xs">{log.endpoint}</span>
                         <Badge variant={getStatusColor(log.status)}>
                           {log.status}
                         </Badge>
@@ -193,9 +193,9 @@ export const WebhookLogs = () => {
         </div>
         
         <div className="text-xs text-gray-500 space-y-1">
-          <p>• Webhook endpoint: <code className="bg-gray-100 px-1 rounded">/webhook/whatsapp</code></p>
-          <p>• Configure your WhatsApp API to send events to this endpoint</p>
-          <p>• Logs are automatically cleared after 24 hours</p>
+          <p>• Webhook logs show requests sent to your configured endpoint</p>
+          <p>• Configure your webhook URL in the "Webhook Config" tab</p>
+          <p>• Logs are automatically cleared after 24 hours to save space</p>
         </div>
       </CardContent>
     </Card>

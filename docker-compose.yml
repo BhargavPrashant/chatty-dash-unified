@@ -1,0 +1,34 @@
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/whatsapp.db:/app/whatsapp.db
+      - ./backend/.wwebjs_auth:/app/.wwebjs_auth
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  database:
+  whatsapp_session:

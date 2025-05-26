@@ -1,21 +1,41 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Copy, Check, ExternalLink } from "lucide-react";
+import { Copy, Check, ExternalLink, Webhook } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useApiCall } from "@/hooks/useApi";
+import { webhookApi } from "@/services/api";
 
 export const WebhookConfig = () => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [currentWebhookInfo, setCurrentWebhookInfo] = useState({ endpoint: '', status: 'inactive' });
   
-  // This would be your actual webhook URL endpoint
-  const currentWebhookUrl = `${window.location.origin}/api/webhook/whatsapp`;
+  const { loading: isConfiguring, execute: executeConfigureWebhook } = useApiCall();
+  const { loading: isTesting, execute: executeTestWebhook } = useApiCall();
+  
+  // Load current webhook configuration
+  useEffect(() => {
+    const loadWebhookInfo = async () => {
+      try {
+        const response = await webhookApi.getEndpointInfo();
+        if (response.success && response.data) {
+          setCurrentWebhookInfo(response.data);
+          setWebhookUrl(response.data.endpoint);
+        }
+      } catch (error) {
+        console.error('Failed to load webhook info:', error);
+      }
+    };
+    
+    loadWebhookInfo();
+  }, []);
   
   const copyToClipboard = async (text: string) => {
     try {
@@ -23,7 +43,7 @@ export const WebhookConfig = () => {
       setCopied(true);
       toast({
         title: "Copied!",
-        description: "Webhook URL copied to clipboard",
+        description: "Text copied to clipboard",
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -35,75 +55,123 @@ export const WebhookConfig = () => {
     }
   };
 
+  const configureWebhook = async () => {
+    if (!webhookUrl.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid webhook URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await executeConfigureWebhook(async () => {
+      const response = await fetch('/api/webhook/configure', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ webhookUrl: webhookUrl.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setCurrentWebhookInfo({ endpoint: webhookUrl.trim(), status: 'active' });
+        toast({
+          title: "Webhook Configured",
+          description: "Webhook URL configured successfully",
+        });
+      } else {
+        throw new Error(data.error || 'Failed to configure webhook');
+      }
+
+      return data;
+    });
+  };
+
   const testWebhook = async () => {
-    try {
+    await executeTestWebhook(async () => {
       const response = await fetch('/api/webhook/test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          test: true,
-          timestamp: new Date().toISOString(),
-        }),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (data.success) {
         toast({
-          title: "Webhook Test Successful",
+          title: "Webhook Test Sent",
           description: "Test webhook event sent successfully",
         });
       } else {
-        throw new Error('Webhook test failed');
+        throw new Error(data.error || 'Webhook test failed');
       }
-    } catch (error) {
-      toast({
-        title: "Webhook Test Failed",
-        description: "Unable to send test webhook event",
-        variant: "destructive",
-      });
-    }
+
+      return data;
+    });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Webhook Configuration</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Webhook className="h-5 w-5" />
+          Webhook Configuration
+        </CardTitle>
         <CardDescription>
-          Configure WhatsApp webhook to receive incoming messages
+          Configure webhook URL to receive real-time WhatsApp message notifications
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Current Webhook URL */}
+        {/* Configure Webhook URL */}
         <div className="space-y-2">
           <Label>Your Webhook URL</Label>
           <div className="flex gap-2">
             <Input
-              value={currentWebhookUrl}
-              readOnly
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="https://your-domain.com/webhook/whatsapp"
               className="font-mono text-sm"
             />
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => copyToClipboard(currentWebhookUrl)}
+              onClick={configureWebhook}
+              disabled={isConfiguring}
+              size="sm"
             >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {isConfiguring ? 'Configuring...' : 'Configure'}
             </Button>
           </div>
           <p className="text-xs text-gray-500">
-            Use this URL in your WhatsApp Business API webhook configuration
+            Enter the URL where you want to receive webhook notifications
           </p>
         </div>
 
         <Separator />
 
-        {/* Webhook Status */}
+        {/* Current Configuration */}
         <div className="space-y-2">
-          <Label>Webhook Status</Label>
-          <div className="flex items-center gap-2">
-            <Badge variant="default">Active</Badge>
-            <span className="text-sm text-gray-600">Ready to receive events</span>
+          <Label>Current Configuration</Label>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Badge variant={currentWebhookInfo.status === 'active' ? 'default' : 'secondary'}>
+                {currentWebhookInfo.status === 'active' ? 'Active' : 'Inactive'}
+              </Badge>
+              <span className="text-sm font-mono text-gray-600">
+                {currentWebhookInfo.endpoint || 'No webhook configured'}
+              </span>
+            </div>
+            {currentWebhookInfo.endpoint && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => copyToClipboard(currentWebhookInfo.endpoint)}
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -112,27 +180,53 @@ export const WebhookConfig = () => {
         {/* Test Webhook */}
         <div className="space-y-2">
           <Label>Test Webhook</Label>
-          <Button onClick={testWebhook} variant="outline" className="w-full">
-            Send Test Event
+          <Button 
+            onClick={testWebhook} 
+            variant="outline" 
+            className="w-full"
+            disabled={isTesting || currentWebhookInfo.status !== 'active'}
+          >
+            {isTesting ? 'Sending Test...' : 'Send Test Event'}
           </Button>
           <p className="text-xs text-gray-500">
-            Send a test event to verify webhook is working
+            Send a test event to verify your webhook endpoint is working
           </p>
         </div>
 
         <Separator />
 
+        {/* Webhook Payload Example */}
+        <div className="space-y-2">
+          <Label>Webhook Payload Example</Label>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+{`{
+  "type": "message_received",
+  "message": {
+    "id": "message_id_123",
+    "from": "+1234567890@c.us",
+    "body": "Hello, this is a test message",
+    "timestamp": 1234567890,
+    "hasMedia": false,
+    "mediaType": null,
+    "mediaPath": null
+  }
+}`}
+            </pre>
+          </div>
+        </div>
+
         {/* Configuration Instructions */}
         <div className="space-y-3">
           <Label>Setup Instructions</Label>
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-            <p className="text-sm font-medium">To configure WhatsApp webhook:</p>
-            <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
-              <li>Go to your WhatsApp Business API provider</li>
-              <li>Navigate to webhook configuration</li>
-              <li>Enter the webhook URL above</li>
-              <li>Select events: messages, message_status</li>
-              <li>Save and verify the webhook</li>
+          <div className="bg-blue-50 p-4 rounded-lg space-y-2 border border-blue-200">
+            <p className="text-sm font-medium text-blue-900">How to set up your webhook:</p>
+            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Deploy your webhook endpoint that accepts POST requests</li>
+              <li>Enter your webhook URL in the field above</li>
+              <li>Click "Configure" to save the webhook</li>
+              <li>Use "Send Test Event" to verify the connection</li>
+              <li>Your endpoint will now receive real-time WhatsApp notifications</li>
             </ol>
           </div>
         </div>
@@ -141,11 +235,19 @@ export const WebhookConfig = () => {
         <div className="space-y-2">
           <Label>Supported Events</Label>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">messages</Badge>
-            <Badge variant="outline">message_status</Badge>
-            <Badge variant="outline">message_deliveries</Badge>
-            <Badge variant="outline">message_reads</Badge>
+            <Badge variant="outline">message_received</Badge>
+            <Badge variant="outline">message_sent</Badge>
+            <Badge variant="outline">media_received</Badge>
+            <Badge variant="outline">webhook_test</Badge>
           </div>
+        </div>
+
+        {/* Security Notice */}
+        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+          <p className="text-sm text-amber-800">
+            <strong>Security Note:</strong> Make sure your webhook endpoint validates incoming requests 
+            and handles the payload securely. Consider implementing authentication headers or IP whitelisting.
+          </p>
         </div>
       </CardContent>
     </Card>

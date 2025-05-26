@@ -1,3 +1,4 @@
+
 // Base API configuration
 const API_BASE_URL = 'http://localhost:5000';
 
@@ -19,10 +20,11 @@ export interface MessageLog {
   id: string;
   timestamp: string;
   type: 'sent' | 'received';
-  phoneNumber: string;
+  phone_number: string;
   content: string;
   status: 'delivered' | 'pending' | 'failed';
-  mediaType?: 'image' | 'video' | 'audio' | 'document';
+  media_type?: 'image' | 'video' | 'audio' | 'document';
+  media_path?: string;
 }
 
 export interface WebhookLog {
@@ -153,6 +155,19 @@ export const webhookApi = {
 
   async getEndpointInfo(): Promise<ApiResponse<{ endpoint: string; status: 'active' | 'inactive' }>> {
     return apiRequest<{ endpoint: string; status: 'active' | 'inactive' }>('/api/webhook/info');
+  },
+
+  async configureWebhook(webhookUrl: string): Promise<ApiResponse<void>> {
+    return apiRequest<void>('/api/webhook/configure', {
+      method: 'POST',
+      body: JSON.stringify({ webhookUrl }),
+    });
+  },
+
+  async testWebhook(): Promise<ApiResponse<void>> {
+    return apiRequest<void>('/api/webhook/test', {
+      method: 'POST',
+    });
   },
 };
 
