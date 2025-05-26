@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +9,7 @@ import { ConnectionStatus } from "@/components/whatsapp/ConnectionStatus";
 import { QRCodeDisplay } from "@/components/whatsapp/QRCodeDisplay";
 import { WebhookLogs } from "@/components/whatsapp/WebhookLogs";
 import { DashboardStats } from "@/components/whatsapp/DashboardStats";
+import { WebhookConfig } from "@/components/whatsapp/WebhookConfig";
 
 const Index = () => {
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -47,11 +47,12 @@ const Index = () => {
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="messaging" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="messaging">Send Messages</TabsTrigger>
             <TabsTrigger value="media">Media Upload</TabsTrigger>
             <TabsTrigger value="logs">Message Logs</TabsTrigger>
             <TabsTrigger value="webhook">Webhook Logs</TabsTrigger>
+            <TabsTrigger value="config">Webhook Config</TabsTrigger>
           </TabsList>
 
           <TabsContent value="messaging" className="space-y-6">
@@ -88,6 +89,10 @@ const Index = () => {
 
           <TabsContent value="webhook" className="space-y-6">
             <WebhookLogs />
+          </TabsContent>
+
+          <TabsContent value="config" className="space-y-6">
+            <WebhookConfig />
           </TabsContent>
         </Tabs>
       </div>
