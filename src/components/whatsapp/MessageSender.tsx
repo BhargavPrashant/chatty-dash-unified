@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useApiCall } from "@/hooks/useApi";
+import { messageApi } from "@/services/api";
 
 interface MessageSenderProps {
   connectionStatus: 'disconnected' | 'connecting' | 'connected';
@@ -15,7 +16,7 @@ export const MessageSender = ({ connectionStatus }: MessageSenderProps) => {
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const { loading: isSending, execute: executeSend } = useApiCall();
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,42 +39,26 @@ export const MessageSender = ({ connectionStatus }: MessageSenderProps) => {
       return;
     }
 
-    setIsSending(true);
-    
-    try {
-      // Mock API call - replace with actual backend call
-      const response = await fetch('/api/send-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumber,
-          message,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-
-      toast({
-        title: "Message Sent",
-        description: `Message sent successfully to ${phoneNumber}`,
-      });
+    await executeSend(async () => {
+      const response = await messageApi.sendMessage(phoneNumber, message);
       
-      // Clear form
-      setMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Send Failed",
-        description: "Unable to send message. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSending(false);
-    }
+      if (response.success) {
+        toast({
+          title: "Message Sent",
+          description: `Message sent successfully to ${phoneNumber}`,
+        });
+        // Clear form
+        setMessage('');
+      } else {
+        toast({
+          title: "Send Failed",
+          description: response.error || "Unable to send message. Please try again.",
+          variant: "destructive",
+        });
+      }
+      
+      return response;
+    });
   };
 
   return (
